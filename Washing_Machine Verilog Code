@@ -1,0 +1,140 @@
+`timescale 1ns / 1ps
+
+module automatic_washing_machine(
+    input clk,
+    input reset,
+    input door_close,
+    input start,
+    input filled,
+    input detergent_added,
+    input cycle_timeout,
+    input drained,
+    input spin_timeout,
+    output reg door_lock,
+    output reg motor_on,
+    output reg fill_value_on,
+    output reg drain_value_on,
+    output reg done,
+    output reg soap_wash,
+    output reg water_wash
+);
+
+    // Defining the states
+    parameter check_door    = 3'b000;
+    parameter fill_water    = 3'b001;
+    parameter add_detergent = 3'b010;
+    parameter cycle         = 3'b011;
+    parameter drain_water   = 3'b100;
+    parameter spin          = 3'b101;
+
+    reg [2:0] current_state, next_state;
+
+    // State transition logic
+    always @(*) begin
+        // Default values for outputs to avoid latches
+        motor_on = 0;
+        fill_value_on = 0;
+        drain_value_on = 0;
+        door_lock = 0;
+        soap_wash = 0;
+        water_wash = 0;
+        done = 0;
+
+        case (current_state)
+            check_door: begin
+                if (start && door_close) begin
+                    next_state = fill_water;
+                    door_lock = 1;
+                end else begin
+                    next_state = check_door;
+                end
+            end
+            
+            fill_water: begin
+                door_lock = 1;
+                fill_value_on = 1;
+                if (filled) begin
+                    fill_value_on = 0;
+                    if (!soap_wash) begin
+                        next_state = add_detergent;
+                    end else begin
+                        next_state = cycle;
+                        water_wash = 1;
+                    end
+                end else begin
+                    next_state = fill_water;
+                end
+            end
+            
+            add_detergent: begin
+                door_lock = 1;
+                soap_wash = 1;
+                if (detergent_added) begin
+                    next_state = cycle;
+                end else begin
+                    next_state = add_detergent;
+                end
+            end
+            
+            cycle: begin
+                door_lock = 1;
+                motor_on = 1;
+                if (cycle_timeout) begin
+                    next_state = drain_water;
+                end else begin
+                    next_state = cycle;
+                end
+            end
+            
+            drain_water: begin
+                door_lock = 1;
+                drain_value_on = 1;
+                if (drained) begin
+                    drain_value_on = 0;
+                    if (!water_wash) begin
+                        next_state = fill_water;
+                    end else begin
+                        next_state = spin;
+                    end
+                end else begin
+                    next_state = drain_water;
+                end
+            end
+            
+            spin: begin
+                door_lock = 1;
+                motor_on = 1;
+                if (spin_timeout) begin
+                    next_state = check_door;
+                    done = 1;
+                end else begin
+                    next_state = spin;
+                end
+            end
+            
+            default: begin
+                next_state = check_door;
+            end
+        endcase
+    end
+
+    // State register
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            current_state <= check_door;
+            soap_wash <= 0;  // Reset soap_wash flag on reset
+            water_wash <= 0; // Reset water_wash flag on reset
+        end else begin
+            current_state <= next_state;
+            // Ensure soap_wash and water_wash flags are set correctly in fill_water state
+            if (current_state == fill_water && filled) begin
+                if (!soap_wash) begin
+                    soap_wash <= 1;
+                end else begin
+                    water_wash <= 1;
+                end
+            end
+        end
+    end
+
+endmodule
