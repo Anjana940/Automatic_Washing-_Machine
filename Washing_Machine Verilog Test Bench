@@ -1,0 +1,71 @@
+module new_test();
+    reg clk, reset, door_close, start, filled, detergent_added, cycle_timeout, drained, spin_timeout;
+    wire door_lock, motor_on, fill_value_on, drain_value_on, done, soap_wash, water_wash;
+
+    // Instantiate the automatic_washing_machine module
+    automatic_washing_machine machine1 (
+        .clk(clk), 
+        .reset(reset), 
+        .door_close(door_close), 
+        .start(start), 
+        .filled(filled), 
+        .detergent_added(detergent_added), 
+        .cycle_timeout(cycle_timeout), 
+        .drained(drained), 
+        .spin_timeout(spin_timeout), 
+        .door_lock(door_lock), 
+        .motor_on(motor_on), 
+        .fill_value_on(fill_value_on), 
+        .drain_value_on(drain_value_on), 
+        .done(done), 
+        .soap_wash(soap_wash), 
+        .water_wash(water_wash)
+    );
+
+    initial begin
+        // Initialize all signals
+        clk = 0;
+        reset = 1;
+        start = 0;
+        door_close = 0;
+        filled = 0;
+        drained = 0;
+        detergent_added = 0;
+        cycle_timeout = 0;
+        spin_timeout = 0;
+
+        // Apply reset for a short period
+        #5 reset = 0;
+        // Start sequence: close door, start machine
+        #5 start = 1; door_close = 1;
+        // Wait and fill the machine with water
+        #10 filled = 1;
+        // Add detergent
+        #10 detergent_added = 1;
+        // Simulate cycle completion
+        #10 cycle_timeout = 1;
+        // Drain the water
+        #10 drained = 1;
+        // Spin the drum
+        #10 spin_timeout = 1;
+        // Wait for the end of the simulation
+        #20 $finish;
+    end
+
+    // Clock generation
+    always begin
+        #5 clk = ~clk; // Toggle clock every 5 time units
+    end
+
+    // Monitor to observe the changes in the signals
+    initial begin
+        $monitor(
+            "Time=%0d, clk=%b, reset=%b, start=%b, door_close=%b, filled=%b, detergent_added=%b, cycle_timeout=%b, drained=%b, spin_timeout=%b, door_lock=%b, motor_on=%b, fill_value_on=%b, drain_value_on=%b, soap_wash=%b, water_wash=%b, done=%b",
+            $time, clk, reset, start, door_close, filled, detergent_added, cycle_timeout, drained, spin_timeout, door_lock, motor_on, fill_value_on, drain_value_on, soap_wash, water_wash, done
+        );
+
+        // Dump waveform data to dump.vcd
+        $dumpfile("dump.vcd");
+        $dumpvars(0, new_test);
+    end
+endmodule
